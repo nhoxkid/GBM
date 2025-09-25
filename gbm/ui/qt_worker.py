@@ -3,7 +3,14 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from PyQt6 import QtCore
+try:  # pragma: no cover - optional dependency in headless CI
+    from PyQt6 import QtCore
+except ImportError:  # pragma: no cover - provide a stub for type checkers
+    QtCore = None  # type: ignore[assignment]
+
+
+if QtCore is None:  # pragma: no cover - keep explicit failure message
+    raise ImportError("PyQt6 is required to run the Qt worker module.")
 
 
 class SimulationWorker(QtCore.QObject):
