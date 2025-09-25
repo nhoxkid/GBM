@@ -10,7 +10,11 @@ import matplotlib.pyplot as plt
 import torch
 
 from gbm import GBMSimulator, build_default_config, summarize_terminal_distribution
-from gbm.visualization import plot_sample_paths, plot_terminal_distribution
+from gbm.visualization import (
+    animate_paths,
+    plot_sample_paths,
+    plot_terminal_distribution,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,6 +71,29 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=60,
         help="Number of bins for the terminal distribution histogram.",
+    )
+    parser.add_argument(
+        "--animate",
+        action="store_true",
+        help="Animate a subset of paths in real time (requires --show or --animation-file).",
+    )
+    parser.add_argument(
+        "--animation-paths",
+        type=int,
+        default=6,
+        help="Number of paths to animate in real time.",
+    )
+    parser.add_argument(
+        "--animation-interval",
+        type=int,
+        default=40,
+        help="Animation frame interval in milliseconds.",
+    )
+    parser.add_argument(
+        "--animation-file",
+        type=Path,
+        default=None,
+        help="Optional path to save the animation (gif/mp4).",
     )
     return parser.parse_args()
 
@@ -138,13 +165,20 @@ def main() -> None:
         f"{fmt(summary.confidence_interval[0])}, {fmt(summary.confidence_interval[1])})"
     )
 
-    should_render = args.show or not args.no_save
-    if should_render:
+    want_static_figures = args.show or not args.no_save
+    want_animation = args.animate or args.animation_file is not None
+
+    figures: list[plt.Figure] = []
+    animation_obj = None
+    animation_fig = None
+
+    if want_static_figures:
         fig_paths, _ = plot_sample_paths(result, num_paths=args.plot_paths)
         fig_hist, _ = plot_terminal_distribution(
             result.prices[:, -1],
             bins=args.hist_bins,
         )
+        figures.extend([fig_paths, fig_hist])
 
         if not args.no_save:
             args.save_dir.mkdir(parents=True, exist_ok=True)
@@ -157,11 +191,33 @@ def main() -> None:
             print(f"  {path_chart}")
             print(f"  {path_hist}")
 
-        if args.show:
-            plt.show()
-        else:
-            plt.close(fig_paths)
-            plt.close(fig_hist)
+    if want_animation:
+        animation_obj, animation_fig, _ = animate_paths(
+            result,
+            num_paths=args.animation_paths,
+            interval_ms=args.animation_interval,
+        )
+        figures.append(animation_fig)
+
+        if args.animation_file is not None:
+            suffix = args.animation_file.suffix.lower()
+            writer = "pillow" if suffix == ".gif" else "ffmpeg"
+            try:
+                animation_obj.save(str(args.animation_file), writer=writer, dpi=150)
+                print(f"\nSaved animation: {args.animation_file}")
+            except (RuntimeError, ValueError) as exc:
+                print(f"\nFailed to save animation ({exc}).")
+
+        if args.animate and not args.show and args.animation_file is None:
+            print("\nAnimation requested without --show or --animation-file; nothing to display.")
+
+    if args.show:
+        plt.show()
+    else:
+        for fig in figures:
+            plt.close(fig)
+        if animation_obj is not None and animation_fig is not None:
+            plt.close(animation_fig)
 
 
 if __name__ == "__main__":
