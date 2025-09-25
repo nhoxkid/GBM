@@ -24,6 +24,7 @@ class RegimeConfig:
     state_labels: Sequence[str]
     device: torch.device = torch.device("cpu")
     dtype: torch.dtype = torch.float64
+    randomness: object | None = None
 
     def __post_init__(self) -> None:
         transition = _as_tensor(self.transition_matrix, dtype=self.dtype, device=self.device)

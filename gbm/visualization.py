@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from .simulator import SimulationResult, StreamingSimulation
+from .results import SimulationResult
+from .streaming import StreamingSimulation
 
 
 __all__ = (
@@ -161,14 +162,16 @@ def animate_streaming_paths(
             ax.set_ylim(y_min - margin, y_max + margin)
         return lines
 
-    frames = range(stream.n_steps + 1)
+    frame_source = count(0) if getattr(stream, "infinite", False) else range(stream.max_steps + 1)
     anim = animation.FuncAnimation(
         fig,
         update,
         init_func=init,
-        frames=frames,
+        frames=frame_source,
         interval=interval_ms,
         blit=False,
         repeat=False,
+        save_count=None if getattr(stream, "infinite", False) else stream.max_steps + 1,
     )
     return anim, fig, ax
+

@@ -11,6 +11,7 @@ import torch
 
 from gbm import (
     GBMSimulator,
+    attach_randomness,
     build_default_config,
     summarize_terminal_distribution,
 )
@@ -20,6 +21,10 @@ from gbm.visualization import (
     plot_sample_paths,
     plot_terminal_distribution,
 )
+from gbm.ui.interactive import run_interactive_wizard
+
+DEFAULT_DRIFT_STD = (0.015, 0.010, 0.020)
+DEFAULT_VOLATILITY_CV = (0.12, 0.18, 0.25)
 
 
 def parse_args() -> argparse.Namespace:
@@ -105,6 +110,35 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable real-time streaming simulation (drives animation as it computes).",
     )
+    parser.add_argument(
+        "--endless",
+        action="store_true",
+        help="Run streaming simulation without a fixed horizon (Ctrl+C to stop).",
+    )
+    parser.add_argument(
+        "--drift-std",
+        type=float,
+        nargs="+",
+        default=None,
+        help="Per-state drift standard deviations for stochastic calibration.",
+    )
+    parser.add_argument(
+        "--volatility-cv",
+        type=float,
+        nargs="+",
+        default=None,
+        help="Per-state volatility coefficients of variation (scale of randomness).",
+    )
+    parser.add_argument(
+        "--deterministic-params",
+        action="store_true",
+        help="Disable stochastic parameter sampling for drift and volatility.",
+    )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Launch an interactive wizard to choose simulation options.",
+    )
     return parser.parse_args()
 
 
@@ -134,6 +168,20 @@ def fmt(value: float) -> str:
     return f"{value:.6f}"
 
 
+def expand_sequence(raw: Optional[list[float]], default: tuple[float, ...], length: int, name: str) -> list[float]:
+    """Expand a sequence to match the number of states."""
+    if raw is None:
+        values = list(default)
+    else:
+        if len(raw) == 1:
+            values = [float(raw[0])] * length
+        elif len(raw) == length:
+            values = [float(v) for v in raw]
+        else:
+            raise ValueError(f"Expected 1 or {length} values for {name}, got {len(raw)}.")
+    return values
+
+
 def maybe_save_animation(anim, path: Path) -> None:
     suffix = path.suffix.lower()
     writer = "pillow" if suffix == ".gif" else "ffmpeg"
@@ -148,8 +196,17 @@ def maybe_save_animation(anim, path: Path) -> None:
 
 
 def main() -> None:
-
     args = parse_args()
+    if getattr(args, "interactive", False):
+        args = run_interactive_wizard(
+            args,
+            default_drift_std=DEFAULT_DRIFT_STD,
+            default_vol_cv=DEFAULT_VOLATILITY_CV,
+        )
+
+    if args.endless and not args.stream:
+        raise SystemExit("--endless requires --stream.")
+
     device = resolve_device(args.device)
     dtype = precision_to_dtype(args.precision)
 
@@ -157,6 +214,19 @@ def main() -> None:
     manual_seed_or_random(generator, args.seed)
 
     config = build_default_config(device=device, dtype=dtype)
+
+    if args.deterministic_params:
+        drift_std = None
+        vol_cv = None
+    else:
+        n_states = config.transition_matrix.shape[0]
+        try:
+            drift_std = expand_sequence(args.drift_std, DEFAULT_DRIFT_STD, n_states, "drift standard deviation")
+            vol_cv = expand_sequence(args.volatility_cv, DEFAULT_VOLATILITY_CV, n_states, "volatility coefficient of variation")
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        attach_randomness(config, drift_std=drift_std, volatility_cv=vol_cv)
+
     simulator = GBMSimulator(config=config, generator=generator)
 
     result = None
@@ -164,32 +234,46 @@ def main() -> None:
     animation_fig = None
 
     if args.stream:
+        if args.endless and not args.show:
+            raise SystemExit("--endless requires --show to visualise the unbounded simulation.")
+
         stream = simulator.simulate_stream(
             n_paths=args.paths,
             n_steps=args.steps,
             horizon=args.horizon,
             s0=args.s0,
             initial_state=args.initial_state,
+            infinite=args.endless,
         )
-        want_animation = args.animate or args.animation_file is not None or args.show
-        if want_animation:
+
+        if args.endless and args.animation_file is not None:
+            print("\nInfinite streaming cannot be exported to a file; ignoring --animation-file.")
+
+        stream_animation_file = None if args.endless else args.animation_file
+        animation_target_stream = args.show or (stream_animation_file is not None)
+
+        if args.animate and not animation_target_stream:
+            print("\nAnimation requested without --show or --animation-file; skipping animation.")
+
+        if animation_target_stream:
             animation_obj, animation_fig, _ = animate_streaming_paths(
                 stream,
                 num_paths=args.animation_paths,
                 interval_ms=args.animation_interval,
             )
-        else:
+        elif not args.endless:
             stream.ensure_complete()
 
-        if args.animation_file is not None and animation_obj is not None:
-            maybe_save_animation(animation_obj, args.animation_file)
+        if stream_animation_file is not None and animation_obj is not None:
+            maybe_save_animation(animation_obj, stream_animation_file)
 
         if args.show and animation_fig is not None:
             plt.show()
         elif animation_fig is not None and not args.show:
             plt.close(animation_fig)
 
-        stream.ensure_complete()
+        if not args.endless:
+            stream.ensure_complete()
         result = stream.to_result()
     else:
         result = simulator.simulate(
@@ -200,16 +284,19 @@ def main() -> None:
             initial_state=args.initial_state,
         )
 
-        want_animation = args.animate or args.animation_file is not None
-        if want_animation or args.show:
+        animation_target_batch = args.show or args.animation_file is not None
+        if args.animate and not animation_target_batch:
+            print("\nAnimation requested without --show or --animation-file; skipping animation.")
+        if animation_target_batch:
             animation_obj, animation_fig, _ = animate_paths(
                 result,
                 num_paths=args.animation_paths,
                 interval_ms=args.animation_interval,
             )
-
-        if args.animation_file is not None and animation_obj is not None:
-            maybe_save_animation(animation_obj, args.animation_file)
+            if args.animation_file is not None:
+                maybe_save_animation(animation_obj, args.animation_file)
+        if not args.show and animation_fig is not None:
+            plt.close(animation_fig)
 
     summary = summarize_terminal_distribution(result.prices)
 
@@ -224,6 +311,10 @@ def main() -> None:
     print("Regime drift:", config.drift.cpu().numpy())
     print("Regime volatility:", config.volatility.cpu().numpy())
     print("State labels:", config.state_labels)
+    randomness = getattr(config, "randomness", None)
+    if randomness is not None:
+        print("Drift std (per state):", randomness.drift_std.cpu().numpy())
+        print("Volatility CV (per state):", randomness.volatility_cv.cpu().numpy())
     print("")
     print(f"Terminal mean: {fmt(summary.mean)}")
     print(f"Terminal standard deviation: {fmt(summary.standard_deviation)}")
@@ -244,9 +335,10 @@ def main() -> None:
         figures.extend([fig_paths, fig_hist])
 
         if not args.no_save:
-            args.save_dir.mkdir(parents=True, exist_ok=True)
-            path_chart = args.save_dir / "gbm_paths.png"
-            path_hist = args.save_dir / "gbm_terminal_hist.png"
+            save_dir = args.save_dir.expanduser()
+            save_dir.mkdir(parents=True, exist_ok=True)
+            path_chart = save_dir / "gbm_paths.png"
+            path_hist = save_dir / "gbm_terminal_hist.png"
             fig_paths.savefig(path_chart, dpi=150, bbox_inches="tight")
             fig_hist.savefig(path_hist, dpi=150, bbox_inches="tight")
             print("")
@@ -259,12 +351,11 @@ def main() -> None:
     else:
         for fig in figures:
             plt.close(fig)
-        if animation_fig is not None and not args.stream:
-            plt.close(animation_fig)
 
 
 if __name__ == "__main__":
     main()
+
 
 
 
