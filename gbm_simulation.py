@@ -8,13 +8,13 @@ from typing import Optional
 import sys
 
 import matplotlib.pyplot as plt
-import torch
 
-from gbm import (
-    GBMSimulator,
-    attach_randomness,
-    build_default_config,
-    summarize_terminal_distribution,
+from gbm import summarize_terminal_distribution
+from gbm.runtime import (
+    DEFAULT_DRIFT_STD,
+    DEFAULT_VOLATILITY_CV,
+    create_simulation_context,
+    fmt,
 )
 from gbm.visualization import (
     animate_paths,
@@ -23,9 +23,6 @@ from gbm.visualization import (
     plot_terminal_distribution,
 )
 from gbm.ui.interactive import run_interactive_wizard
-
-DEFAULT_DRIFT_STD = (0.015, 0.010, 0.020)
-DEFAULT_VOLATILITY_CV = (0.12, 0.18, 0.25)
 
 
 def parse_args() -> argparse.Namespace:
@@ -148,45 +145,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_device(device_arg: str) -> torch.device:
-    if device_arg == "auto":
-        if torch.cuda.is_available():
-            return torch.device("cuda")
-        return torch.device("cpu")
-    device = torch.device(device_arg)
-    if device.type == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA requested but not available.")
-    return device
-
-
-def precision_to_dtype(precision: str) -> torch.dtype:
-    return torch.float64 if precision == "float64" else torch.float32
-
-
-def manual_seed_or_random(generator: torch.Generator, seed: Optional[int]) -> None:
-    if seed is not None:
-        generator.manual_seed(seed)
-    else:
-        generator.manual_seed(torch.seed())
-
-
-def fmt(value: float) -> str:
-    return f"{value:.6f}"
-
-
-def expand_sequence(raw: Optional[list[float]], default: tuple[float, ...], length: int, name: str) -> list[float]:
-    """Expand or validate a per-state sequence."""
-    if raw is None:
-        values = list(default)
-    else:
-        if len(raw) == 1:
-            values = [float(raw[0])] * length
-        elif len(raw) == length:
-            values = [float(v) for v in raw]
-        else:
-            raise ValueError(f"Expected 1 or {length} values for {name}, got {len(raw)}.")
-    return values
-
 
 def maybe_save_animation(anim, path: Path, log) -> Optional[Path]:
     suffix = path.suffix.lower()
@@ -221,31 +179,24 @@ def execute_simulation(args: argparse.Namespace, *, suppress_output: bool = Fals
         if not suppress_output:
             print(message)
 
-    device = resolve_device(args.device)
-    dtype = precision_to_dtype(args.precision)
-
-    generator = torch.Generator(device=device)
-    manual_seed_or_random(generator, args.seed)
-
-    config = build_default_config(device=device, dtype=dtype)
-
-    if args.deterministic_params:
-        drift_std = None
-        vol_cv = None
-    else:
-        n_states = config.transition_matrix.shape[0]
-        drift_std = expand_sequence(args.drift_std, DEFAULT_DRIFT_STD, n_states, "drift standard deviation")
-        vol_cv = expand_sequence(args.volatility_cv, DEFAULT_VOLATILITY_CV, n_states, "volatility coefficient of variation")
-        attach_randomness(config, drift_std=drift_std, volatility_cv=vol_cv)
-
-    simulator = GBMSimulator(config=config, generator=generator)
+    context = create_simulation_context(
+        device=args.device,
+        precision=args.precision,
+        seed=args.seed,
+        deterministic_params=args.deterministic_params,
+        drift_std=args.drift_std,
+        volatility_cv=args.volatility_cv,
+        save_dir=args.save_dir,
+    )
+    config = context.config
+    simulator = context.simulator
 
     animation_obj = None
     animation_fig = None
     figures: list[plt.Figure] = []
 
     animation_file = _coerce_path(args.animation_file)
-    save_dir = args.save_dir.expanduser()
+    save_dir = context.save_dir
 
     if args.stream:
         if args.endless and not args.show:
@@ -314,7 +265,7 @@ def execute_simulation(args: argparse.Namespace, *, suppress_output: bool = Fals
     summary = summarize_terminal_distribution(result.prices)
 
     log("Simulation complete")
-    log(f"Device: {device}")
+    log(f"Device: {config.device}")
     log(f"Precision: {args.precision}")
     log(f"Paths: {args.paths}")
     log(f"Steps: {args.steps}")
