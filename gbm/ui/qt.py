@@ -57,7 +57,7 @@ if QtWidgets is not None:
             runner: Callable[[argparse.Namespace], dict],
         ) -> None:
             super().__init__()
-            self.setWindowTitle("GBM Monte Carlo Studio")
+            self.setWindowTitle("GBM Monte Carlo Simulator")
             self.resize(1180, 760)
 
             self.runner = runner
@@ -88,7 +88,7 @@ if QtWidgets is not None:
             header = QtWidgets.QWidget(central)
             header_layout = QtWidgets.QVBoxLayout(header)
             header_layout.setContentsMargins(0, 0, 0, 0)
-            title = QtWidgets.QLabel("GBM Monte Carlo Studio", header)
+            title = QtWidgets.QLabel("GBM Monte Carlo Simulator", header)
             title.setStyleSheet("font-size: 28px; font-weight: 700;")
             subtitle = QtWidgets.QLabel(
                 "Design, stream, and analyse regime-switching geometric Brownian motion",
