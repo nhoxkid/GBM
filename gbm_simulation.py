@@ -9,9 +9,14 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import torch
 
-from gbm import GBMSimulator, build_default_config, summarize_terminal_distribution
+from gbm import (
+    GBMSimulator,
+    build_default_config,
+    summarize_terminal_distribution,
+)
 from gbm.visualization import (
     animate_paths,
+    animate_streaming_paths,
     plot_sample_paths,
     plot_terminal_distribution,
 )
@@ -75,13 +80,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--animate",
         action="store_true",
-        help="Animate a subset of paths in real time (requires --show or --animation-file).",
+        help="Animate a subset of paths (streaming uses real-time updates).",
     )
     parser.add_argument(
         "--animation-paths",
         type=int,
         default=6,
-        help="Number of paths to animate in real time.",
+        help="Number of paths to animate.",
     )
     parser.add_argument(
         "--animation-interval",
@@ -94,6 +99,11 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Optional path to save the animation (gif/mp4).",
+    )
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Enable real-time streaming simulation (drives animation as it computes).",
     )
     return parser.parse_args()
 
@@ -124,7 +134,21 @@ def fmt(value: float) -> str:
     return f"{value:.6f}"
 
 
+def maybe_save_animation(anim, path: Path) -> None:
+    suffix = path.suffix.lower()
+    writer = "pillow" if suffix == ".gif" else "ffmpeg"
+    directory = path.parent
+    directory.mkdir(parents=True, exist_ok=True)
+    target = directory / path.name
+    try:
+        anim.save(str(target.resolve()), writer=writer, dpi=150)
+        print(f"\nSaved animation: {target}")
+    except (RuntimeError, ValueError) as exc:
+        print(f"\nFailed to save animation ({exc}).")
+
+
 def main() -> None:
+
     args = parse_args()
     device = resolve_device(args.device)
     dtype = precision_to_dtype(args.precision)
@@ -134,13 +158,58 @@ def main() -> None:
 
     config = build_default_config(device=device, dtype=dtype)
     simulator = GBMSimulator(config=config, generator=generator)
-    result = simulator.simulate(
-        n_paths=args.paths,
-        n_steps=args.steps,
-        horizon=args.horizon,
-        s0=args.s0,
-        initial_state=args.initial_state,
-    )
+
+    result = None
+    animation_obj = None
+    animation_fig = None
+
+    if args.stream:
+        stream = simulator.simulate_stream(
+            n_paths=args.paths,
+            n_steps=args.steps,
+            horizon=args.horizon,
+            s0=args.s0,
+            initial_state=args.initial_state,
+        )
+        want_animation = args.animate or args.animation_file is not None or args.show
+        if want_animation:
+            animation_obj, animation_fig, _ = animate_streaming_paths(
+                stream,
+                num_paths=args.animation_paths,
+                interval_ms=args.animation_interval,
+            )
+        else:
+            stream.ensure_complete()
+
+        if args.animation_file is not None and animation_obj is not None:
+            maybe_save_animation(animation_obj, args.animation_file)
+
+        if args.show and animation_fig is not None:
+            plt.show()
+        elif animation_fig is not None and not args.show:
+            plt.close(animation_fig)
+
+        stream.ensure_complete()
+        result = stream.to_result()
+    else:
+        result = simulator.simulate(
+            n_paths=args.paths,
+            n_steps=args.steps,
+            horizon=args.horizon,
+            s0=args.s0,
+            initial_state=args.initial_state,
+        )
+
+        want_animation = args.animate or args.animation_file is not None
+        if want_animation or args.show:
+            animation_obj, animation_fig, _ = animate_paths(
+                result,
+                num_paths=args.animation_paths,
+                interval_ms=args.animation_interval,
+            )
+
+        if args.animation_file is not None and animation_obj is not None:
+            maybe_save_animation(animation_obj, args.animation_file)
 
     summary = summarize_terminal_distribution(result.prices)
 
@@ -165,14 +234,8 @@ def main() -> None:
         f"{fmt(summary.confidence_interval[0])}, {fmt(summary.confidence_interval[1])})"
     )
 
-    want_static_figures = args.show or not args.no_save
-    want_animation = args.animate or args.animation_file is not None
-
     figures: list[plt.Figure] = []
-    animation_obj = None
-    animation_fig = None
-
-    if want_static_figures:
+    if not args.no_save or args.show:
         fig_paths, _ = plot_sample_paths(result, num_paths=args.plot_paths)
         fig_hist, _ = plot_terminal_distribution(
             result.prices[:, -1],
@@ -191,34 +254,18 @@ def main() -> None:
             print(f"  {path_chart}")
             print(f"  {path_hist}")
 
-    if want_animation:
-        animation_obj, animation_fig, _ = animate_paths(
-            result,
-            num_paths=args.animation_paths,
-            interval_ms=args.animation_interval,
-        )
-        figures.append(animation_fig)
-
-        if args.animation_file is not None:
-            suffix = args.animation_file.suffix.lower()
-            writer = "pillow" if suffix == ".gif" else "ffmpeg"
-            try:
-                animation_obj.save(str(args.animation_file), writer=writer, dpi=150)
-                print(f"\nSaved animation: {args.animation_file}")
-            except (RuntimeError, ValueError) as exc:
-                print(f"\nFailed to save animation ({exc}).")
-
-        if args.animate and not args.show and args.animation_file is None:
-            print("\nAnimation requested without --show or --animation-file; nothing to display.")
-
     if args.show:
         plt.show()
     else:
         for fig in figures:
             plt.close(fig)
-        if animation_obj is not None and animation_fig is not None:
+        if animation_fig is not None and not args.stream:
             plt.close(animation_fig)
 
 
 if __name__ == "__main__":
     main()
+
+
+
+
