@@ -94,44 +94,47 @@ QLabel.section-title {
 
 def _build_palette(theme: str) -> QtGui.QPalette:
     palette = QtGui.QPalette()
+
     if theme == "dark":
         base = QtGui.QColor("#1d1d1f")
+        alt_base = QtGui.QColor("#2c2c2e")
         text = QtGui.QColor("#f5f5f7")
-        accent = QtGui.QColor("#0a84ff")
+        tooltip_base = QtGui.QColor("#3a3a3c")
+        highlight = QtGui.QColor("#0a84ff")
+        highlight_text = QtGui.QColor("#0b0b0d")
         disabled = QtGui.QColor("#5e5e62")
-        palette.setColor(QtGui.QPalette.ColorRole.Window, base)
-        palette.setColor(QtGui.QPalette.ColorRole.WindowText, text)
-        palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor("#2c2c2e"))
-        palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor("#2c2c2e"))
-        palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, QtGui.QColor("#3a3a3c"))
-        palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, text)
-        palette.setColor(QtGui.QPalette.ColorRole.Text, text)
-        palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor("#2c2c2e"))
-        palette.setColor(QtGui.QPalette.ColorRole.ButtonText, text)
-        palette.setColor(QtGui.QPalette.ColorRole.Link, accent)
-        palette.setColor(QtGui.QPalette.ColorRole.Highlight, accent)
-        palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor("#0b0b0d"))
-        palette.setColor(QtGui.QPalette.ColorRole.Disabled, QtGui.QPalette.ColorRole.Text, disabled)
-        palette.setColor(QtGui.QPalette.ColorRole.Disabled, QtGui.QPalette.ColorRole.ButtonText, disabled)
     else:
         base = QtGui.QColor("#f5f5f7")
+        alt_base = QtGui.QColor("#ffffff")
         text = QtGui.QColor("#1d1d1f")
-        accent = QtGui.QColor("#0071e3")
+        tooltip_base = QtGui.QColor("#ffffff")
+        highlight = QtGui.QColor("#0071e3")
+        highlight_text = QtGui.QColor("#ffffff")
         disabled = QtGui.QColor("#8e8e93")
-        palette.setColor(QtGui.QPalette.ColorRole.Window, base)
-        palette.setColor(QtGui.QPalette.ColorRole.WindowText, text)
-        palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor("#ffffff"))
-        palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor("#f0f0f3"))
-        palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, QtGui.QColor("#ffffff"))
-        palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, text)
-        palette.setColor(QtGui.QPalette.ColorRole.Text, text)
-        palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor("#ffffff"))
-        palette.setColor(QtGui.QPalette.ColorRole.ButtonText, text)
-        palette.setColor(QtGui.QPalette.ColorRole.Link, accent)
-        palette.setColor(QtGui.QPalette.ColorRole.Highlight, accent)
-        palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor("#ffffff"))
-        palette.setColor(QtGui.QPalette.ColorRole.Disabled, QtGui.QPalette.ColorRole.Text, disabled)
-        palette.setColor(QtGui.QPalette.ColorRole.Disabled, QtGui.QPalette.ColorRole.ButtonText, disabled)
+
+    def _apply(color_role: QtGui.QPalette.ColorRole, color: QtGui.QColor) -> None:
+        for group in (
+            QtGui.QPalette.ColorGroup.Active,
+            QtGui.QPalette.ColorGroup.Inactive,
+        ):
+            palette.setColor(group, color_role, color)
+
+    _apply(QtGui.QPalette.ColorRole.Window, base)
+    _apply(QtGui.QPalette.ColorRole.WindowText, text)
+    _apply(QtGui.QPalette.ColorRole.Base, alt_base)
+    _apply(QtGui.QPalette.ColorRole.AlternateBase, base)
+    _apply(QtGui.QPalette.ColorRole.ToolTipBase, tooltip_base)
+    _apply(QtGui.QPalette.ColorRole.ToolTipText, text)
+    _apply(QtGui.QPalette.ColorRole.Text, text)
+    _apply(QtGui.QPalette.ColorRole.Button, alt_base)
+    _apply(QtGui.QPalette.ColorRole.ButtonText, text)
+    _apply(QtGui.QPalette.ColorRole.Link, highlight)
+    _apply(QtGui.QPalette.ColorRole.Highlight, highlight)
+    _apply(QtGui.QPalette.ColorRole.HighlightedText, highlight_text)
+
+    palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, disabled)
+    palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.ButtonText, disabled)
+
     return palette
 
 
@@ -144,4 +147,3 @@ def apply_theme(app: QtWidgets.QApplication, theme: str) -> None:
         app.setStyleSheet(DARK_QSS)
     else:
         app.setStyleSheet(LIGHT_QSS)
-
