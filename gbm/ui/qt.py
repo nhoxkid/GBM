@@ -272,6 +272,10 @@ if QtWidgets is not None:
             self.run_button.clicked.connect(self._run_simulation)
             action_bar.addWidget(self.run_button)
 
+            self.stream_button = QtWidgets.QPushButton("Stream in Real Time")
+            self.stream_button.clicked.connect(self._run_stream_now)
+            action_bar.addWidget(self.stream_button)
+
             self.stop_button = QtWidgets.QPushButton("Stop Streaming")
             self.stop_button.clicked.connect(self._stop_streaming)
             self.stop_button.setEnabled(False)
@@ -352,8 +356,22 @@ if QtWidgets is not None:
             namespace = self._build_namespace()
             if namespace is None:
                 return
+            self._execute_namespace(namespace)
+
+        def _run_stream_now(self) -> None:
+            namespace = self._build_namespace()
+            if namespace is None:
+                return
+            namespace.stream = True
+            self.stream_checkbox.blockSignals(True)
+            self.stream_checkbox.setChecked(True)
+            self.stream_checkbox.blockSignals(False)
+            self._execute_namespace(namespace)
+
+        def _execute_namespace(self, namespace: argparse.Namespace) -> None:
             self._reset_state("Running simulation…")
             self.run_button.setEnabled(False)
+            self.stream_button.setEnabled(False)
             self.stop_button.setEnabled(False)
 
             if namespace.stream:
@@ -379,15 +397,22 @@ if QtWidgets is not None:
             self.output_text.clear()
             self.canvas.show_empty_message("Preparing streaming simulation…")
 
-            context = create_simulation_context(
-                device=namespace.device,
-                precision=namespace.precision,
-                seed=namespace.seed,
-                deterministic_params=namespace.deterministic_params,
-                drift_std=namespace.drift_std,
-                volatility_cv=namespace.volatility_cv,
-                save_dir=namespace.save_dir,
-            )
+            try:
+                context = create_simulation_context(
+                    device=namespace.device,
+                    precision=namespace.precision,
+                    seed=namespace.seed,
+                    deterministic_params=namespace.deterministic_params,
+                    drift_std=namespace.drift_std,
+                    volatility_cv=namespace.volatility_cv,
+                    save_dir=namespace.save_dir,
+                )
+            except Exception as exc:
+                QtWidgets.QMessageBox.critical(self, "Failed to prepare stream", str(exc))
+                self.run_button.setEnabled(True)
+                self.stream_button.setEnabled(True)
+                self.stop_button.setEnabled(False)
+                return
             simulator = context.simulator
             stream = simulator.simulate_stream(
                 n_paths=namespace.paths,
@@ -435,11 +460,13 @@ if QtWidgets is not None:
             self._update_summary(summary, context.config)
             self._append_message("Streaming summary computed.")
             self.run_button.setEnabled(True)
+            self.stream_button.setEnabled(True)
             self.stop_button.setEnabled(False)
             self.status_label.setText("Streaming finished")
 
         def _on_static_finished(self, payload: dict) -> None:
             self.run_button.setEnabled(True)
+            self.stream_button.setEnabled(True)
             self.status_label.setText("Simulation complete")
             result = payload.get("result")
             if result is not None and self._last_namespace is not None:
@@ -467,6 +494,7 @@ if QtWidgets is not None:
 
         def _on_static_failed(self, error: str) -> None:
             self.run_button.setEnabled(True)
+            self.stream_button.setEnabled(True)
             QtWidgets.QMessageBox.critical(self, "Simulation failed", error)
             self.status_label.setText("Simulation failed")
 

@@ -63,6 +63,7 @@ class StreamingController(QtCore.QObject):
             self._timer.stop()
             self._active = False
             self.message.emit(f"Streaming error: {exc}")
+            self.completed.emit(self._simulation.to_result())
             return
 
         current = self._simulation.current_step
@@ -73,4 +74,3 @@ class StreamingController(QtCore.QObject):
 
     def is_active(self) -> bool:
         return self._active
-
