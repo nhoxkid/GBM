@@ -1,20 +1,22 @@
 """Worker utilities for running simulations without freezing the UI."""
 from __future__ import annotations
 
-from PyQt6 import QtCore
+from typing import Any, Callable
+
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
 
-class SimulationWorker(QtCore.QObject):
+class SimulationWorker(QObject):
     """Lift the blocking simulation call onto a background thread."""
-    finished = QtCore.pyqtSignal(dict)
-    failed = QtCore.pyqtSignal(str)
+    finished = pyqtSignal(dict)
+    failed = pyqtSignal(str)
 
-    def __init__(self, args, runner) -> None:
+    def __init__(self, args: Any, runner: Callable[[Any], dict]) -> None:
         super().__init__()
         self._args = args
         self._runner = runner
 
-    @QtCore.pyqtSlot()
+    @pyqtSlot()
     def run(self) -> None:
         try:
             result = self._runner(self._args)
