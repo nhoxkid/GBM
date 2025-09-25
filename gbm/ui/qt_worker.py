@@ -3,20 +3,20 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt6 import QtCore
 
 
-class SimulationWorker(QObject):
+class SimulationWorker(QtCore.QObject):
     """Lift the blocking simulation call onto a background thread."""
-    finished = pyqtSignal(dict)
-    failed = pyqtSignal(str)
+    finished = QtCore.pyqtSignal(dict)
+    failed = QtCore.pyqtSignal(str)
 
     def __init__(self, args: Any, runner: Callable[[Any], dict]) -> None:
         super().__init__()
         self._args = args
         self._runner = runner
 
-    @pyqtSlot()
+    @QtCore.pyqtSlot()
     def run(self) -> None:
         try:
             result = self._runner(self._args)
