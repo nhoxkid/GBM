@@ -1,4 +1,4 @@
-"""Streaming utilities for GBM simulations."""
+﻿"""Streaming utilities for GBM simulations."""
 from __future__ import annotations
 
 import math
@@ -70,6 +70,14 @@ class StreamingSimulation:
         self._time_values = [0.0]
 
         self._visual_count = 0
+
+    @property
+    def current_step(self) -> int:
+        return self._current_step
+
+    @property
+    def is_complete(self) -> bool:
+        return self._completed
 
     def set_visual_count(self, count: int) -> int:
         actual = min(max(count, 0), self.n_paths)
