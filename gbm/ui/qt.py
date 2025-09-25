@@ -175,19 +175,23 @@ if QtWidgets is not None:
 
             add_section("Visualisation & streaming")
             self.stream_checkbox = QtWidgets.QCheckBox("Stream paths in real time")
+            self.stream_checkbox.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             self.stream_checkbox.stateChanged.connect(self._toggle_stream_dependent)
             form_layout.addWidget(self.stream_checkbox, row, 0, 1, 2)
             row += 1
 
             self.endless_checkbox = QtWidgets.QCheckBox("Run without fixed horizon (Ctrl+C to stop)")
+            self.endless_checkbox.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             form_layout.addWidget(self.endless_checkbox, row, 0, 1, 2)
             row += 1
 
             self.animate_checkbox = QtWidgets.QCheckBox("Capture animation frames for static runs")
+            self.animate_checkbox.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             form_layout.addWidget(self.animate_checkbox, row, 0, 1, 2)
             row += 1
 
             self.show_checkbox = QtWidgets.QCheckBox("Show Matplotlib windows (static only)")
+            self.show_checkbox.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             form_layout.addWidget(self.show_checkbox, row, 0, 1, 2)
             row += 1
 
@@ -209,6 +213,7 @@ if QtWidgets is not None:
 
             add_section("Outputs")
             self.save_plots_checkbox = QtWidgets.QCheckBox("Save static figures to disk")
+            self.save_plots_checkbox.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             form_layout.addWidget(self.save_plots_checkbox, row, 0, 1, 2)
             row += 1
 
@@ -228,6 +233,7 @@ if QtWidgets is not None:
 
             add_section("Randomness")
             self.randomness_checkbox = QtWidgets.QCheckBox("Enable stochastic drift/volatility")
+            self.randomness_checkbox.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             self.randomness_checkbox.stateChanged.connect(self._toggle_randomness_inputs)
             form_layout.addWidget(self.randomness_checkbox, row, 0, 1, 2)
             row += 1

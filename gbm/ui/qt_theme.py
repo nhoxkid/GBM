@@ -30,6 +30,25 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     padding: 6px 8px;
     background: white;
 }
+QCheckBox {
+    spacing: 12px;
+    padding: 6px 4px;
+}
+QCheckBox::indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 2px solid #d2d2d7;
+    background: white;
+}
+QCheckBox::indicator:hover {
+    border-color: #0071e3;
+}
+QCheckBox::indicator:checked {
+    border-color: #0071e3;
+    background-color: #0071e3;
+    image: url(:/qt-project.org/styles/commonstyle/images/checkboxindicator.png);
+}
 QTextEdit, QPlainTextEdit {
     border: 1px solid #d2d2d7;
     border-radius: 12px;
@@ -73,6 +92,25 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     padding: 6px 8px;
     background: #2c2c2e;
     color: #f5f5f7;
+}
+QCheckBox {
+    spacing: 12px;
+    padding: 6px 4px;
+}
+QCheckBox::indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 2px solid #3a3a3c;
+    background: #2c2c2e;
+}
+QCheckBox::indicator:hover {
+    border-color: #0a84ff;
+}
+QCheckBox::indicator:checked {
+    border-color: #0a84ff;
+    background-color: #0a84ff;
+    image: url(:/qt-project.org/styles/commonstyle/images/checkboxindicator.png);
 }
 QTextEdit, QPlainTextEdit {
     border: 1px solid #3a3a3c;
