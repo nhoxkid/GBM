@@ -5,6 +5,7 @@ from PyQt6 import QtCore
 
 
 class SimulationWorker(QtCore.QObject):
+    """Lift the blocking simulation call onto a background thread."""
     finished = QtCore.pyqtSignal(dict)
     failed = QtCore.pyqtSignal(str)
 
@@ -21,4 +22,3 @@ class SimulationWorker(QtCore.QObject):
             self.failed.emit(str(exc))
         else:
             self.finished.emit(result)
-

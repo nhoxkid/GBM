@@ -147,6 +147,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def maybe_save_animation(anim, path: Path, log) -> Optional[Path]:
+    """Persist a Matplotlib animation to disk and report the result via log."""
     suffix = path.suffix.lower()
     writer = "pillow" if suffix == ".gif" else "ffmpeg"
     directory = path.parent
@@ -162,6 +163,7 @@ def maybe_save_animation(anim, path: Path, log) -> Optional[Path]:
 
 
 def _coerce_path(value: Optional[Path | str]) -> Optional[Path]:
+    """Normalise optional path inputs coming from argparse/Qt widgets."""
     if value in (None, ""):
         return None
     if isinstance(value, Path):
@@ -170,6 +172,7 @@ def _coerce_path(value: Optional[Path | str]) -> Optional[Path]:
 
 
 def execute_simulation(args: argparse.Namespace, *, suppress_output: bool = False) -> dict:
+    """Run a full Monte Carlo simulation and collect artefacts for callers."""
     messages: list[str] = []
     saved_paths: list[Path] = []
     animation_saved: Optional[Path] = None
@@ -326,6 +329,7 @@ def execute_simulation(args: argparse.Namespace, *, suppress_output: bool = Fals
 
 
 def _qt_available() -> bool:
+    """Return True when PyQt6 can be imported in the current environment."""
     try:
         import PyQt6  # noqa: F401
     except ImportError:
@@ -334,6 +338,7 @@ def _qt_available() -> bool:
 
 
 def main() -> None:
+    """Entry point used by both CLI and PyInstaller builds."""
     args = parse_args()
 
     want_gui = args.gui or (len(sys.argv) == 1 and _qt_available())

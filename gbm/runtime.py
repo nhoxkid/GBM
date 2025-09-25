@@ -25,6 +25,7 @@ class SimulationContext:
 
 
 def resolve_device(device_arg: str) -> torch.device:
+    """Resolve a user-supplied device token to an actual torch.device."""
     if device_arg == "auto":
         if torch.cuda.is_available():
             return torch.device("cuda")
@@ -36,6 +37,7 @@ def resolve_device(device_arg: str) -> torch.device:
 
 
 def precision_to_dtype(precision: str) -> torch.dtype:
+    """Translate a precision flag into a PyTorch dtype."""
     return torch.float64 if precision == "float64" else torch.float32
 
 
@@ -75,6 +77,7 @@ def create_simulation_context(
     volatility_cv: Optional[Sequence[float]],
     save_dir: Path,
 ) -> SimulationContext:
+    """Build the common simulator configuration used by both CLI and GUI."""
     resolved_device = resolve_device(device)
     dtype = precision_to_dtype(precision)
 
@@ -104,4 +107,5 @@ def create_simulation_context(
 
 
 def fmt(value: float) -> str:
+    """Format numerical output with six significant figures."""
     return f"{value:.6f}"

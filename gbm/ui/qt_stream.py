@@ -8,6 +8,7 @@ from gbm.ui.qt_canvas import SimulationCanvas
 
 
 class StreamingController(QtCore.QObject):
+    """Drive a StreamingSimulation with a QTimer and broadcast progress."""
     completed = QtCore.pyqtSignal(object)  # Emits SimulationResult
     message = QtCore.pyqtSignal(str)
     frame_advanced = QtCore.pyqtSignal(int)
@@ -51,6 +52,7 @@ class StreamingController(QtCore.QObject):
         self.completed.emit(self._simulation.to_result())
 
     def _advance(self) -> None:
+        """Advance the simulation by one step and refresh the canvas."""
         try:
             self._simulation.step()
         except StopIteration:

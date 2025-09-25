@@ -375,6 +375,7 @@ if QtWidgets is not None:
             self._execute_namespace(namespace)
 
         def _execute_namespace(self, namespace: argparse.Namespace) -> None:
+            """Dispatch a parsed namespace to streaming or batch execution."""
             self._reset_state("Running simulation…")
             self.run_button.setEnabled(False)
             self.stream_button.setEnabled(False)
@@ -386,6 +387,7 @@ if QtWidgets is not None:
                 self._start_static(namespace)
 
         def _start_static(self, namespace: argparse.Namespace) -> None:
+            """Run the traditional Monte Carlo workflow on a worker thread."""
             namespace.show = False
             self._last_namespace = namespace
             self._worker_thread = QtCore.QThread(self)
@@ -399,6 +401,7 @@ if QtWidgets is not None:
             self._worker_thread.start()
 
         def _start_streaming(self, namespace: argparse.Namespace) -> None:
+            """Initialise the streaming controller and kick off live updates."""
             self.stop_button.setEnabled(True)
             self.output_text.clear()
             self.canvas.show_empty_message("Preparing streaming simulation…")
@@ -456,6 +459,7 @@ if QtWidgets is not None:
             self.stop_button.setEnabled(False)
 
         def _finish_streaming(self, result, namespace: argparse.Namespace, context) -> None:
+            """Render final figures and update summary once streaming stops."""
             summary = summarize_terminal_distribution(result.prices)
             self.canvas.show_static_result(
                 result,
@@ -471,6 +475,7 @@ if QtWidgets is not None:
             self.status_label.setText("Streaming finished")
 
         def _on_static_finished(self, payload: dict) -> None:
+            """Update the UI after the background worker returns."""
             self.run_button.setEnabled(True)
             self.stream_button.setEnabled(True)
             self.status_label.setText("Simulation complete")
@@ -564,6 +569,7 @@ if QtWidgets is not None:
             self._last_result = None
 
         def _build_namespace(self) -> Optional[argparse.Namespace]:
+            """Collect form values into the same namespace used by the CLI."""
             try:
                 drift_std = _parse_float_list(self.drift_std_edit.text()) if self.randomness_checkbox.isChecked() else None
                 vol_cv = _parse_float_list(self.vol_cv_edit.text()) if self.randomness_checkbox.isChecked() else None
