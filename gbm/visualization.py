@@ -1,6 +1,7 @@
 """Visualization utilities for GBM simulations."""
 from __future__ import annotations
 
+from itertools import count
 from typing import Tuple
 
 import matplotlib.animation as animation
@@ -174,4 +175,3 @@ def animate_streaming_paths(
         save_count=None if getattr(stream, "infinite", False) else stream.max_steps + 1,
     )
     return anim, fig, ax
-

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 from typing import Optional
+import sys
 
 import matplotlib.pyplot as plt
 import torch
@@ -197,7 +198,8 @@ def maybe_save_animation(anim, path: Path) -> None:
 
 def main() -> None:
     args = parse_args()
-    if getattr(args, "interactive", False):
+    auto_interactive = len(sys.argv) == 1 and sys.stdin.isatty() and sys.stdout.isatty()
+    if getattr(args, "interactive", False) or auto_interactive:
         args = run_interactive_wizard(
             args,
             default_drift_std=DEFAULT_DRIFT_STD,
@@ -355,6 +357,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
 
 
 
