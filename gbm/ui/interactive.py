@@ -1,4 +1,4 @@
-"""Rich-powered interactive wizard for configuring GBM simulations."""
+﻿"""Rich-powered interactive wizard for configuring GBM simulations."""
 from __future__ import annotations
 
 import argparse
@@ -241,6 +241,9 @@ def run_interactive_wizard(
         volatility_cv=vol_cv_values,
         deterministic_params=deterministic_params,
         interactive=False,
+        gui=False,
     )
+
+
 
 
