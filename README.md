@@ -5,7 +5,7 @@ The app supports fast Monte Carlo batches, real-time streaming, and a PyQt6 fron
 styled after modern Apple UI patterns.
 
 ## Requirements
-
+- like duck 
 - Python 3.10 or newer
 - PyTorch 2.x with CUDA if you want GPU acceleration
 - Matplotlib, NumPy
